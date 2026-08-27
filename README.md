@@ -4,39 +4,9 @@ Proyecto personal para poner en práctica los conceptos de la certificación **A
 
 ## Arquitectura
 
-```
-                    Internet
-                       │
-                       ▼
-              ┌─────────────────┐
-              │ Internet Gateway │
-              └────────┬─────────┘
-                       │
-   ┌───────────────────┼───────────────────────────┐
-   │  VPC (10.0.0.0/16) │                           │
-   │                    ▼                           │
-   │        ┌─────────────────────┐                 │
-   │        │  Subnet pública      │                 │
-   │        │  (10.0.1.0/24)       │                 │
-   │        │                      │                 │
-   │        │  ┌────────────────┐  │                 │
-   │        │  │  EC2 (t3.micro) │  │                │
-   │        │  │  Servidor web   │  │                │
-   │        │  └────────┬────────┘  │                │
-   │        └───────────┼───────────┘                │
-   │                    │ sg-ec2 → sg-rds             │
-   │                    ▼                             │
-   │        ┌─────────────────────────────────────┐  │
-   │        │  Subnets privadas                    │  │
-   │        │  (10.0.2.0/24, 10.0.3.0/24)           │  │
-   │        │                                       │  │
-   │        │  ┌─────────────────┐                  │  │
-   │        │  │ RDS (db.t3.micro)│                 │  │
-   │        │  │ MySQL             │                │  │
-   │        │  └─────────────────┘                  │  │
-   │        └─────────────────────────────────────┘  │
-   └───────────────────────────────────────────────────┘
-```
+![Resource map de la VPC](images/resource-map.png)
+
+*Vista generada por AWS mostrando la VPC, las 3 subnets distribuidas en distintas Availability Zones, las route tables y su conexión al Internet Gateway — solo la subnet pública está asociada a la ruta con salida a internet.*
 
 **Capas:**
 - **Capa de presentación/aplicación:** instancia EC2 en subnet pública, con un servidor web (Apache) sirviendo contenido.
@@ -47,6 +17,11 @@ Proyecto personal para poner en práctica los conceptos de la certificación **A
 
 - **Segmentación pública/privada:** solo la subnet con la EC2 tiene ruta hacia el Internet Gateway (`0.0.0.0/0`). Las subnets de RDS no tienen salida a internet, lo que la hace inalcanzable desde afuera de la VPC.
 - **Security Groups encadenados:** el Security Group de RDS (`sg-rds`) no permite tráfico desde ninguna IP — únicamente acepta conexiones que provengan del Security Group de la EC2 (`sg-ec2`). Esto garantiza que solo la capa de aplicación puede hablarle a la base de datos, sin importar desde dónde se conecte la EC2.
+
+  ![Inbound rules de sg-rds](images/security-groups-rds.png)
+
+  *La regla de entrada del puerto 3306 tiene como Source el Security Group de la EC2, no una IP — RDS solo acepta conexiones que vengan de la capa de aplicación.*
+
 - **`PubliclyAccessible: false` en RDS:** refuerza a nivel de configuración de RDS lo mismo que ya impone la red — la base nunca recibe una IP pública.
 - **CIDR `/16` para la VPC y `/24` para subnets:** deja margen de crecimiento (65.536 IPs en la VPC, 256 por subnet) sin sobre-dimensionar, siguiendo la convención estándar de AWS.
 
@@ -54,6 +29,12 @@ Proyecto personal para poner en práctica los conceptos de la certificación **A
 
 1. **Fase manual (consola de AWS):** VPC, subnets, Internet Gateway, route tables, Security Groups, EC2 y RDS armados paso a paso desde la consola, para entender qué hace cada recurso y por qué.
 2. **Fase de Infraestructura como Código:** toda la arquitectura fue traducida a una plantilla de **AWS CloudFormation** (`proyecto-3capas.yaml`), permitiendo desplegar y destruir el entorno completo de forma reproducible con un solo comando.
+
+   ![Stack de CloudFormation en CREATE_COMPLETE](images/cloudformation-stack.png)
+
+   ![Los 14 recursos desplegados por el stack](images/cloudformation-resources.png)
+
+   *El stack crea automáticamente los 14 recursos de la arquitectura (VPC, subnets, security groups, EC2, RDS, route tables) con nombres lógicos que reflejan cada componente.*
 
 ## Stack técnico
 
@@ -103,4 +84,4 @@ Esto elimina todos los recursos creados (VPC, EC2, RDS, Security Groups, etc.) e
 
 ## Autor
 
-Joaquín Abreu — [LinkedIn](#) · [GitHub](#)
+Joaquín Abreu — [LinkedIn](https://www.linkedin.com/in/joaquin-abreu-9a675b431/) · [GitHub](https://github.com/Joaquin-Abreu)
